@@ -149,17 +149,25 @@ def get_tile(url_template, axis_names, tile_indices):
     """
     for axis, tile_index in zip(axis_names, tile_indices):
         url_template = url_template.replace('{' + axis + '}', str(tile_index))
+    # Debug line: uncomment to see which tiles are fetched.
+    # Note that when printing these may get confused due to multithreading
+    #print 'fetching tile from',url_template
     tile_data = json.loads(get_data(url_template))
-    tile_values = np.array(tile_data['values']).reshape(tile_data['shape'])
+    tile_values = np.array(tile_data['values'], dtype=float).reshape(tile_data['shape'])
     return tile_values
 
 if __name__ == '__main__':
     # Usage example.
-    arrs = get_dask_arrays('https://covjson.org/playground/coverages/grid-tiled.covjson')
-    
-    for name, data in arrs.iteritems():
-        print name+':'
-        # Here we just convert it to a numpy array and print it to screen.
-        # To make use of dask we probably want to do something more useful, like performing calculations on it, or slicing it.
-        print np.array(data)
-        print 
+    arrs = get_dask_arrays('http://godiva.rdg.ac.uk/coverage/sst-tiled.json')
+    print "Created dask array"
+    sst = arrs['analysed_sst-yx_tiling']
+    print 'Shape:',sst.shape
+    print "Got array, calculating means:"
+    print 'Northern Eighth', da.nanmean(sst[0,:450,:]).compute()
+    print 'Equatorial Quarter', da.nanmean(sst[0,1350:2250,:]).compute()
+    print 'Southern Eighth', da.nanmean(sst[0,3150:,:]).compute()
+    # Note that even though we defined c100, each tile is still fetched for each calculation.
+    # That's because we've used a naive fetch method, with no caching
+    c100 = sst[0,1700:1900,3500:3700]
+    print 'Central 100 points', da.nanmean(c100).compute()
+    print 'Central 100 points Min/Max', da.nanmin(c100).compute(), da.nanmax(c100).compute()
